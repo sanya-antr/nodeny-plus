@@ -1,0 +1,389 @@
+<!doctype html>
+<html>
+<head>
+<title>Nodeny. Программирование модулей админки</title>
+<meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+<link rel='stylesheet' href='../i/nody.css' type='text/css'>
+</head>
+<body>
+
+<div class='header'><a href='../index.html'><img src='../i/Logo.png'></a>
+Программирование модулей админки</div>
+
+<div class='code'><div class='mark'>Открываем файл /usr/local/nodeny/cfg/web_plugins.cfg и вписываем:</div>
+<pre>demo 1 0 demo Тестовый модуль</pre>
+</div>
+
+<p>Первый параметр (demo) код модуля, который передается в адресной строке в параметре a:
+<em>http://your.nodeny.site.com/cgi-bin/stat.pl?a=demo</em>. 4й параметр указывает на файл без расширения
+<em>pl</em>. Т.е. если в адресной строке, кроме прочих параметров
+будет присутствовать <em>a=demo</em>, то будет выполнен скрипт <em>demo.pl</em>:</p>
+
+<div class='code'><div class='mark'>Создаем файл /usr/local/nodeny/web/demo.pl</div>
+<pre>
+use strict;
+
+ToTop 'Вас приветствует тестовый модуль';
+Error 'Он ничего не делает, но выводит окно с ошибкой';
+1;
+</pre>
+</div>
+
+<p>В html, который формирует NoDeny, есть 4 основных области: верхняя, левая, правая и центральная:</p>
+
+<div class='code'><div class='mark'>код perl</div>
+<pre>
+use strict;
+
+ToTop 'Строка в верху страницы';
+ToLeft 'Строка в левой части экрана';
+ToRight 'Строка в правой части экрана';
+ToTop 'Еще одна строка в верху страницы';
+Error 'Ошибка';
+Show 'Эта строка не будет выведена т.к. Error() не только выводит ошибку, но и завершает выполнение модуля';
+</pre>
+</div>
+
+<p>Движок NoDeny позволяет формировать html разными способами, например, непосредственной вставкой html-кода:</p>
+
+<div class='code'><div class='mark'>код perl</div>
+<pre>
+Show "&lt;p&gt;&lt;b&gt;Не рекомендую писать html в коде.&lt;/b&gt; ".
+     "&lt;span class='error'&gt;Это строка напечатана красным цветом&lt;/b&gt;&lt;/p&gt;";
+</pre>
+</div>
+
+
+<p>Более сложный пример:</p>
+
+<div class='code'><div class='mark'>код perl</div>
+<pre>
+use strict;
+
+if( ses::input_exists('num') )
+{
+    my $num = ses::input('num');
+    $num =~ /^\d+$/ or Error('Вы не ввели целое положительное число');
+    Show Center "OK. Вы ввели $num";
+    return 1;
+}
+
+my $form = url->form(
+    a => ses::cur_module,
+    _('[p][p h_center][p h_center]',
+        'Введите целое положительное число:',
+        v::input_t(name=>'num'),
+        v::submit('Далее')
+    )
+);
+
+Show Center MessageBox( $form );
+</pre>
+</div>
+
+
+<p>Переменные, которые были переданы браузером (POST или GET параметры) доступны через <em>ses::input('имя переменной')</em>. В примере
+<em>ses::input('num')</em> возвращает параметр с именем <em>num</em>. Т.е. если ввести в адресной строке 
+<em>http://../stat.pl?a=demo&num=55</em>, то <em>ses::input('num')</em> вернет <em>55</em>.</p>
+
+<p><em>ses::input_exists('num')</em> проверяет была ли вообще передана переменная <em>num</em>. При открытии нашего плагина, в адресной
+строке не будет <em>num</em>, поэтому условие <em>if( ses::input_exists('num') )</em> не выполнится и сработает код:</p>
+
+<div class='code'><div class='mark'>код perl</div>
+<pre>
+my $form = создание формы ввода;
+Show отображение формы ввода;
+</pre>
+</div>
+
+<p><em>my $form = url->form(...)</em> создает в переменной <em>$form</em> код html-формы, в которой находится текстовое
+поле ввода с именем num, а также кнопка &#171;Далее&#187;. Пока не вдаемся в подробности
+структуры form и внутренних подпрограмм. Отметим лишь функцию <em>_()</em>, которая похожа на <em>sprintf</em> - в первом
+параметре задается шаблон, остальные параметры подставляются в этот шаблон. Шаблон кодируется квадратными скобками и
+в большинстве случаев конвертируется по такому правилу:</p>
+
+<p><em>[имя_тега класс]</em> &rarr; <em>&lt;имя_тега class='класс'&gt;&lt;/имя_тега&gt;</em></p>
+
+<div class='code'><div class='mark'>код perl</div>
+<pre>
+Show _('Здравствуйте, [span bold]. Сегодня [span big]', 'Администратор', 'Пятница!');
+</pre>
+</div></p>
+
+<p>преобразуется в <em>Здравствуйте, &lt;span class='bold'&gt;Администратор&lt;/span&gt;.
+Сегодня &lt;span class='big'&gt;Пятница!&lt;/span&gt;</em></p>
+
+<br><br>
+
+<p>Задача: вывести ФИО всех клиентов, у которых баланс меньше нуля.</p>
+
+<div class='code'><div class='mark'>код perl</div>
+<pre>
+use strict;
+
+Adm-&gt;chk_privil_or_die(30);
+
+my $db = Db-&gt;sql("SELECT id, name, balance FROM users WHERE balance&lt;0 ORDER BY name");
+$db-&gt;ok or Error('не выполнился sql');
+$db-&gt;rows &gt; 0 or Error('Нет ни одного клиента с отрицательным балансом');
+
+my $tbl = tbl->new( -class=&gt;'td_wide td_medium' );
+while( my %p = $db-&gt;line )
+{
+    my $err_msg = Adm-&gt;why_no_usr_access($p{id});
+    $err_msg && next;
+    $tbl-&gt;add('*', 'll', $p{name}, $p{balance});
+}
+Show Center $tbl-&gt;show;
+</pre>
+</div></p>
+
+<p><em>Adm-&gt;chk_privil_or_die</em> проверяет есть ли у текущего администратора определенная
+привилегия. В данном случае проверяется привилегия «просмотр платежей» (код 30, см.
+файл RU_admin.pl). Если привилегии нет, действие скрипта будет прекращено с выводом
+сообщения об отсутствии прав доступа, расширенная ошибка пойдет в debug.</p>
+
+<p><em>Db-&gt;sql</em> применяется когда нужно получить выборку нескольких строк,
+Db-&gt;line - одной строки. Разница в том, что в первом случае возвращается объект, из которого
+можно запрашивать строку за строкой, во втором случае сразу возвращается строка в виде хеша.
+Если выборка не возвращает ни одной строки, причина может быть в том, что условию не соответствует
+ни одна строка либо же ошибочный sql, дисконнект БД и др. ошибки. Хорошим тоном является
+обработка ошибок, в примере это <em>$db-&gt;ok or Error(...).</em></p>
+
+<p><em>tbl->new</em> создает объект html-таблица с css 'td_wide td_medium'. Класс td_wide
+делает широкими ячейки таблицы (большой padding по ширине), td_medium делает средний вертикальный
+padding. Обычно таких параметров достаточно, чтобы данные в разных столбцах не сливались, т.е. между
+ними был достаточный промежуток. Можете использовать слудующие css для ячеек таблиц:</p>
+
+<ul>
+<li>td_narrow - небольшой padding по ширине;</li>
+<li>td_ok - примерно соответствует td_wide и td_medium;</li>
+<li>fade_border - ячейки отделяются полупрозрачными линиями;</li>
+<li>pretty - высота ячеек таблицы становится чуть больше, когда строк в таблице немного;</li>
+</ul>
+
+<p><em>Adm-&gt;why_no_usr_access</em> проверяет есть ли у текущего админа доступ к учетной записи
+клиента с заданным id. Если у админа нет доступа к группе клиента, то возвращается строка
+«нет доступа к группе». Если никаких ошибок при проверке не возникло и доступ есть,
+возвращается пустая строка.</p>
+
+<p><em>$tbl-&gt;add</em> добавляет строку в объект html-таблица. 1й параметр - css строки, звездочка
+указывает, что css для четных и нечетных строк будут чередоваться, по умолчанию классами row1 и row2.
+2й параметр описывает выравнивание текста внутри каждой ячейки, каждый символ соответствует
+ячейке по-порядку. Основные символы выравнивания:</p>
+
+<ul>
+<li>l - left</li>
+<li>r - right</li>
+<li>c - center</li>
+<li>L - объединяет две ячейки в одну и устанавливает выравнивание left</li>
+<li>R - объединяет две ячейки в одну и устанавливает выравнивание right</li>
+<li>C - объединяет две ячейки в одну и устанавливает выравнивание center</li>
+<li>3 - объединяет 3 ячейки в одну и устанавливает выравнивание center</li>
+<li>4 - объединяет 4 ячейки в одну и устанавливает выравнивание center</li>
+</ul>
+
+<br><br>
+
+<p>Еще один пример. Модуль выводит список клиентов в виде таблицы, максимально 10 строк за раз,
+вверху отображая постраничную навигацию. Заголовки столбцов - ссылки, при нажатии на которые
+происходит сортировка по текущему столбцу.</p>
+
+<div class='code'><div class='mark'>код perl</div>
+<pre>
+use strict;
+
+my %fields = (
+    id   =&gt; 'id',
+    fio  =&gt; 'ФИО',
+    name =&gt; 'логин',
+);
+
+my $order = ses::input('order');
+$order = 'id' if !exists $fields{$order};
+
+my $sql = 'SELECT * FROM users ORDER BY '.$order;
+my $url = url-&gt;new( a=&gt;ses::cur_module, order=&gt;$order );
+my($sql, $page_buttons, $rows, $db) = Show_navigate_list($sql, ses::input_int('start'), 10, $url);
+my $tbl = tbl-&gt;new( -class=&gt;'td_ok' );
+
+$tbl->add('head', 'lll', map{ 
+    [ $url->a($fields{$_}, order=&gt;$_) ]
+} sort{ $a cmp $b } keys %fields);
+
+while( my %p = $db-&gt;line )
+{
+    $tbl-&gt;add('*', 'lll', map{ $p{$_} } sort{ $a cmp $b } keys %fields);
+}
+Show Center $page_buttons;
+Show Center $tbl-&gt;show;
+</pre>
+</div></p>
+
+
+<p>Хеш <em>%fields</em> содержит поля таблицы клиентов, которые будут выводится, соответственно
+по этим полям возможна сортировка. <em>$order = 'id' if !exists $fields{$order}</em> - делает
+скрипт безопасным, если оператор в адресной строке подменит имя реального поля на недействительное,
+например sql инъекцию, то оно будет заменено на дефолтное: id.</p>
+
+<p><em>url-&gt;new()</em> возвращает объект url с заданными параметрами. Поскольку при постраничной навигации
+необходимо сохранять сортировку, вводим в url параметр order. В противном случае, при нажатии на любую страницу
+в навигации, была бы принята сортировка по умолчанию, в нашем случае по id.</p>
+
+<p><em>$url-&gt;a()</em> рендерит объект $url в гиперрсылку. Первый параметр - текст гиперссылки, остальные параметры
+добавляются в url. Например,</p>
+
+<div class='code'>
+<pre>$url-&gt;a('Привет', hi=&gt1);</pre>
+</div>
+
+<p>преобразуется в <em>&lt;a href='?a=demo&amp;hi=1'&gt;Привет&lt;/a&gt;</em>. Почему в url появился параметр a=demo?
+Потому что при создании $url мы установили его. Пример:</p>
+
+<div class='code'><div class='mark'>код perl</div>
+<pre>
+my $url = url-&gt;new( a=&gt;'users' );
+Show $url-&gt;a('Список клиентов').' '.$url-&gt;a('Модуль карточек', a=>'cards');
+</pre>
+</div></p>
+
+<p>Видно, что параметр <em>a</em> переопределяется во втором $url-&gt;a().</p>
+
+
+<br><br>
+
+<p>Написание реального модуля требует изучения документации, в частности структуры базы и модулей calls.pm:</p>
+
+<ul>
+<li>main - общие подпрограммы</li>
+<li>v - html примитивы (поле ввода, checkbox, submit и т.д)</li>
+<li>url - гиперссылки и формы</li>
+<li>tbl - таблицы</li>
+<li>Db - работа с базой данных</li>
+</ul>
+
+
+<p class='big'>Подпрограммы модуля main:</p>
+
+
+
+<div class='code'><div class='mark'>MessageBox</div>
+
+<p><b>MessageBox</b> выводит сообщение в рамке.</p>
+
+<pre class='mess'>
+ToLeft MessageBox('Сообщение 1');
+ToRight MessageBox('Сообщение 2');
+</pre>
+</div>
+
+
+
+<div class='code'><div class='mark'>MessageWideBox</div>
+
+<p><b>MessageWideBox</b> выводит сообщение в рамке, растянутой по ширине.</p>
+
+<pre class='mess'>
+Show MessageWideBox('Сообщение');
+</pre>
+</div>
+
+
+
+<div class='code'><div class='mark'>Box</div>
+<p><b>Box</b> выводит темплейт box.html. Все параметры необязательные:</p>
+
+<ul>
+<li>title - заголовок сообщения</li>
+<li>msg - сообщение</li>
+<li>wide  - если установлен, то рамка растягивается по ширине</li>
+<li>css_class - css class сообщения</li>
+</ul>
+
+<pre class='mess'>
+Show Box(
+    title =&gt; 'Заголовок',
+    wide  =&gt; 1,
+    msg   =&gt; 'Текст сообщения внутри рамки',
+    css_class =&gt; 'error txtpadding',
+);
+</pre>
+</div>
+
+
+
+
+
+
+<div class='code'><div class='mark'>WideBox</div>
+<p><b>WideBox</b> тоже, что и Box, но параметр wide установлен в 1.</p>
+
+<pre class='mess'>
+Show WideBox();
+</pre>
+</div>
+
+
+
+<div class='code'><div class='mark'>Menu</div>
+<p><b>Menu</b> тоже, что и MessageWideBox, но сообщение имеет css class `navmenu`, что
+предписывает выводить гиперссылки на всю ширину блока, одна под другой.</p>
+
+<pre class='mess'>
+ToLeft Menu(
+    url-&gt;a( 'Список клиентов', a=&gt;'users' ).
+    url-&gt;a( 'Статистика трафика', a=&gt;'traf_log' ).
+    url-&gt;a( 'Google', -base=&gt;'http://google.com' )
+);
+</pre>
+</div>
+
+
+
+<div class='code'><div class='mark'>Center</div>
+<p><b>Center</b> выводит информацию отцентрированной по горизонтали.</p>
+
+<pre class='mess'>
+Show Center MessageBox('Center');
+</pre>
+</div>
+
+
+
+
+<div class='code'><div class='mark'>Error</div>
+<p><b>Error</b> выводит сообщение об ошибке и завершает выполнение скриптов.</p>
+
+<pre class='mess'>
+1 &gt; 2 && Error('1 &gt; 2 !!!');
+</pre>
+</div>
+
+
+
+
+<div class='code'><div class='mark'>Error_</div>
+<p><b>Error_</b> тоже, что и Error, но сообщение обрабатывается подпрограммой _().</p>
+
+<pre class='mess'>
+$lang::hello_msg = 'Здравствуйте [filtr|bold], на вашем счету [bold] $';
+Error_($lang::hello_msg, 'администратор', 1000);
+</pre>
+</div>
+
+
+
+
+<div class='code'><div class='mark'>chk_priv</div>
+<p><b>chk_priv</b> проверка привилегии администратора и вывод ошибки с завершением выполнения скриптов, если
+заданного права у администратора нет.</p>
+
+<pre class='mess'>
+chk_priv('yayaya'); # проверка несуществующей привилегии с именем yayaya
+system('format c:'); # это никогда не будет выполнено. Хотя.. если я в будущем добавлю привилегию yayaya?
+</pre>
+</div>
+
+
+</body>
+</html>

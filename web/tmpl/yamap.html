@@ -1,0 +1,225 @@
+<div id='YaMap'></div>
+
+<link rel='stylesheet' href='{{cfg::img_dir}}/nody.time.slider.css' type='text/css'>
+<script type='text/javascript' src='{{cfg::img_dir}}/js/nody.time.slider.js'></script>
+<script type='text/javascript' src='{{map_url}}'></script>
+<script type='text/javascript'>
+
+
+var NoMap = {
+    Map : {},
+    balloon_text : "<div id='mballoon'>{{lang::msg_after_submit}}</div>",
+    umark_style  : 'default#greenSmallPoint',
+    pmark_style  : 'default#blueSmallPoint',
+    marks : {}
+};
+
+// cmd     : команда
+// gps     : координаты маркера
+// mark_id : id маркера, для клиента соответствует его id
+// unikey  : в какой коллекции состоит маркер (ключ к данным таблицы websess_data БД),
+//           пустое значение - коллекция со всеми маркерами
+
+NoMap.ajax = function(cmd, gps, mark_id, unikey)
+{
+    $.ajax({
+        dataType: 'json',
+        url     : '{{ses::script_url}}',
+        data    : {
+            a       : cmd,
+            mark_id : mark_id,
+            gps     : gps.toString(),
+            unikey  : unikey
+        },
+        success : nody.ajax_response
+    });
+};
+
+// Открывает балун в заданных координатах, в нем сообщение 'Ждите...'
+NoMap.open_ballon = function(gpsX, gpsY)
+{
+    NoMap.Map.openBalloon(new YMaps.GeoPoint(gpsX, gpsY), NoMap.balloon_text);
+}
+
+// Перерисовывает балун, необходимо чтобы подстроился под размеры контента
+// Также в контенте будут обработаны ajax ссылки (отмена релода страницы при сабмите)
+NoMap.update_ballon = function()
+{
+    NoMap.Map.getBalloon().update();
+    nody.make_ajax();
+}
+
+NoMap.close_balloon = function()
+{
+    NoMap.Map.closeBalloon();
+}
+
+// Делает ajax на получение всех маркеров в коллекции unikey
+NoMap.reload_marks = function( unikey )
+{
+    $.ajax({
+        dataType: 'json',
+        url     : '{{ses::script_url}}',
+        data    : {
+            a      : 'ajYamapGet',
+            unikey : unikey 
+        },
+        success : nody.ajax_response
+    });
+}
+
+// nody.ajax_response - обработчик ajax ответов сервера, вызовет NoMap.show_marks
+// с координатами маркеров
+NoMap.show_marks = function( unikey, ids )
+{
+    var collection = NoMap.Map.collection;
+    collection.metaDataProperty = { unikey: unikey };
+    collection.removeAll();
+    NoMap.marks = {};
+    for( var id in ids )
+    {
+        var gps  = new YMaps.GeoPoint( ids[id].x, ids[id].y );
+        var mark = new YMaps.Placemark( gps, { draggable: {{Marks_draggable}} } );
+        collection.add(mark);
+
+        mark_id = 'u' + id;
+        mark.metaDataProperty = {
+            id : mark_id,
+            gps: gps.copy()
+        };
+
+        NoMap.marks[mark_id] = mark;
+
+        mark.setBalloonContent( NoMap.balloon_text );
+        // Обработчик открытия балуна
+        YMaps.Events.observe(mark, mark.Events.BalloonOpen, function(m)
+        {
+            NoMap.ajax('ajYamapBalloon', m.getGeoPoint(), m.metaDataProperty.id, unikey);
+        });
+
+        // Обработчик окончания перемещения маркера
+        YMaps.Events.observe(mark, mark.Events.DragEnd, function(m)
+        {
+            NoMap.ajax('ajYamapMove', m.getGeoPoint(), m.metaDataProperty.id, unikey);
+            m.setCoordPoint(m.metaDataProperty.gps);
+        });
+    }
+    NoMap.Map.addOverlay( collection );
+}
+
+
+/* -----------------------------------------------------------------
+
+                            Start
+
+----------------------------------------------------------------- */
+
+function YaMaps()
+{
+    // Стиль для значка метки
+    var Mark_style = new YMaps.Style();
+    Mark_style.iconStyle = new YMaps.IconStyle();
+    Mark_style.iconStyle.href = "{{cfg::img_dir}}/mark_green.png";
+    Mark_style.iconStyle.size = new YMaps.Point(22, 22);
+    Mark_style.iconStyle.offset = new YMaps.Point(-11, -11);
+
+    $(window).resize( function()
+    {
+        var w = $(window).width() - 300;
+        var h = $(window).height() - $('#YaMap').offset().top - 20;
+        $('#YaMap').css({
+            width : Math.max(w,300),
+            height: Math.max(h,200)
+        });
+    });
+
+    var Map = new YMaps.Map(document.getElementById('YaMap'));
+    NoMap.Map = Map;
+
+    Map.setCenter(new YMaps.GeoPoint({{map_center_x}}, {{map_center_y}}), {{map_scale}});
+    Map.enableScrollZoom();
+
+    Map.addControl(new YMaps.TypeControl());    //смена типа карты
+    Map.addControl(new YMaps.ToolBar());        //инструменты
+    Map.addControl(new YMaps.Zoom());           //смена масштаба
+//  Map.addControl(new YMaps.MiniMap());        //небольшая карта рядом
+    Map.addControl(new YMaps.ScaleLine());      //масштаб
+
+    Map.collection = new YMaps.GeoObjectCollection( NoMap.umark_style );
+    Map.collection.metaDataProperty = { unikey:'' };
+
+    // Двойной клик по карте - создание нового маркера
+    YMaps.Events.observe(Map, Map.Events.DblClick, function(Map, mEvent)
+    {
+        Map.openBalloon(mEvent.getGeoPoint(), $('#create_mark_balloon').html());
+        $('#create_usr_mark').click( function()
+        {
+            NoMap.ajax('ajYamapCreate', Map.getBalloon().getGeoPoint(), 'u' + $('#create_mark_uid').val(), '');
+            return false;
+        });
+        $('#create_place_mark').click( function()
+        {
+            NoMap.ajax('ajYamapCreate', Map.getBalloon().getGeoPoint(), 'p' + $('#create_mark_uid').val(), '');
+            return false;
+        });
+    });
+
+
+    // --- Слайдер выбора времени ---
+
+    var slider = $('#time_slider').timeslider();
+
+    // Если поле ввода времени изменилось - изменим позицию слайдера
+    var hh_mm_input = $('#time_form input[name=hh_mm]');
+    hh_mm_input.change( function()
+    {
+        slider.set_hh_mm( hh_mm_input.val() );
+    });
+    // Установим позицию слайдера в текущее время (при старте оно заносится в поле ввода)
+    hh_mm_input.change();
+
+    // На карте отображаются маркеры на этот момент времени
+    // -1 гарантирует, что данные будут обновлены т.к. значения слайдера != -1
+    var slider_shown_time = -1;
+
+    // Периодически проверяем не изменился ли слайдер
+    setInterval( function()
+    {
+        if( slider.busy ) return;
+        // Если на экране данные не соответствуют времени слайдера - получим новые
+        if( slider_shown_time == slider.value ) return;
+        slider.tobusy();
+        $.ajax({
+            dataType: 'json',
+            url     : '{{ses::script_url}}',
+            data    : {
+                a       : 'ajYamapAuth',
+                minutes : slider.value 
+            },
+            success : nody.ajax_response
+        });
+    }, 200);
+
+    // Ajax обработчик вернет время, на которое он подготовил данные
+    NoMap.slider_ajax_end = function( minutes, hh_mm )
+    {
+        slider_shown_time = minutes;
+        hh_mm_input.val(hh_mm);
+        slider.unbusy();
+    };
+
+    $(window).resize();
+}
+
+
+</script>
+
+<div id='create_mark_balloon' style='display:none'>
+    <p>{{lang::mYamap_add_to_map}} id: 
+        <input type='text' value='' autocomplete='off' size='7' maxlength='7' id='create_mark_uid'>
+    </p>
+    <div class='h_center'>
+        <a href='#' class='nav' id='create_usr_mark'>{{lang::mYamap_create_usr_mark}}</a>
+        <a href='#' class='nav' id='create_place_mark'>{{lang::mYamap_create_place_mark}}</a>
+    </div>
+</div>

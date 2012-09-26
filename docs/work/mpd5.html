@@ -1,0 +1,321 @@
+<!doctype html>
+<html>
+<head>
+<title>Nodeny. Mpd5 + Radius</title>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+<link rel='stylesheet' href='../i/nody.css' type='text/css'>
+</head>
+<body>
+
+<div class='header'><a href="../index.html"><img src="../i/Logo.png"></a>
+ Настройка PPPoE сервера mpd5 с привязкой к Radius</div>
+
+
+<p>Первая часть состоит из описания принципа работы, можете ее пропустить и <a href="#start">перейти к настройке</a>.</p>
+
+
+<h1>Описание принципа работы NoDeny + mpd5 + radius</h1>
+
+<p>Mpd позволяет клиентам подключаться к серверу по pppoe/pptp протоколам.</p>
+
+<ol type='1' start='1'>
+<li>Mpd принимает запрос на соединение и обращается к radius для проверки соответствия логин/пароль.
+Radius запускает mysql-процедуру radcheck.</li>
+
+<li>Если в БД логин существует и соответствует паролю, то клиенту разрешается соединение. Обратите внимание,
+состояние клиента «заблокирован» или «не заблокирован» не влияет на сам факт соединения. Т.е. легальный
+абонент создает соединение и будет иметь доступ минимум к своей статистике, даже если доступ в интернет
+у него запрещен.</li>
+
+<li>После авторизации, radius передает mdp параметры соединения: ip, маску, а также другие данные,
+если необходимы (mysql-процедура radreply).</li>
+
+<li>Сразу после этого mpd запускает postauth_query (mysql-процедура radupdate). Radupdate запускает процедуру
+set_auth, которая записывает в таблицу авторизаций auth_now данные текущей авторизации.</li>
+
+<li>Mpd настраивается таким образом, что с определенным периодом будет посылать radius-у
+accounting пакеты для каждого соединения. Эти пакеты будут интерпретироваться как keep-alive пакеты,
+сообщающие NoDeny, что соединение не зависло. Accounting_update_query ссылается на ту же процедуру
+radupdate, которая опять же вызывает set_auth. При этом если запись в таблице auth_now существует,
+то поле last будет обновлено текущим временем.</li>
+
+<li>Ядро NoDeny удаляет записи из таблицы auth_now, у которых поле last давно не обновлялось, т.е.
+удаляет по таймауту.</li>
+</ol>
+
+<h1>Комментарии</h1>
+
+<p>Mysql-процедура radreply для получения ip клиента запускает функцию get_ip, которая смотрит есть ли у данного
+клиента статический ip в таблице ip_pool. Если нет, то пытается выделить динамический (поле type='dynamic').
+При этом поле release устанавливается в значение времени, когда этот ip следует освободить. Процедура set_auth
+периодически обновляет это поле (аналогично полю last таблицы auth_now). Таким образом, пока клиент авторизован,
+поле release всегда указывает в будущее.</p>
+
+
+<p>После того, как клиент перестает быть авторизованным и release становится равным текущему времени - динамический
+ip «отвязывается» от клиента (освобождается). Set_auth всегда устанавливает release на несколько минут в будущее,
+чтобы ip не освободился до того момента как будет получена статистика трафика. В противном случае, ip мог бы
+быть выдан другому абоненту, после чего ему был бы начислен трафик предыдущего.</p>
+
+<p>При выдаче динамического ip, функция get_ip также проверяет есть ли у клиента услуга с тегом realip.
+Если да, то выбирается ip, у которого поле real_ip = 1.</p>
+
+<h1><a name='start'></a>Настройка Radius</h1>
+
+<p>Устанавливаем radius как <a href='radius.html'>указано здесь</a></b>.</p>
+
+
+<p>Создаем необходимые процедуры mysql</p>
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+mysql -u root --password=`perl -e'require "/usr/local/nodeny/history.nod"; print $sql_root_pass;'` nodeny
+</pre>
+</div>
+
+<p>Проверяем выдачу ip клиенту c id=1 (измените на существующий id).</p>
+<div class="code"><div class="mark">команда mysql</div>
+<pre>
+SELECT get_ip(1);
+</pre>
+</div>
+
+<p>Процедура проверки логина-пароля. Внимание! hardpass заменить на ключ из файла sat.cfg</p>
+<div class="code"><div class="mark">команды mysql.</div>
+<pre>
+DROP PROCEDURE IF EXISTS `radcheck`;
+DELIMITER $$
+CREATE PROCEDURE `radcheck` (IN login VARCHAR(64))
+BEGIN
+  SELECT id,name,'Password' AS Attribute,AES_DECRYPT(passwd,'hardpass') AS Value,'=='
+    FROM users WHERE name=login;
+END$$
+DELIMITER ;
+</pre>
+</div>
+
+<div class="code"><div class="mark">команды mysql. Процедура получения атрибутов подключения</div>
+<pre>
+DROP PROCEDURE IF EXISTS `radreply`;
+DELIMITER $$
+CREATE PROCEDURE `radreply`(IN login VARCHAR(64))
+BEGIN
+  DECLARE usr_id INT;
+  DECLARE usr_ip VARCHAR(15) DEFAULT NULL;
+
+  SELECT id INTO usr_id FROM users WHERE name=login LIMIT 1;
+  SELECT get_ip(usr_id) INTO usr_ip;
+
+  SELECT NULL,login,'Framed-IP-Address',usr_ip,'=';
+  SELECT NULL,login,'Framed-IP-Netmask','255.255.255.255','=';
+  SELECT NULL,login,'Framed-Protocol','PPP','=';
+END$$
+DELIMITER ;
+</pre>
+</div>
+
+<div class="code"><div class="mark">команды mysql. Процедура поддержания авторизации</div>
+<pre>
+DROP PROCEDURE IF EXISTS `radupdate`;
+DELIMITER $$
+CREATE PROCEDURE `radupdate`(IN login VARCHAR(64), IN ip VARCHAR(16), IN properties VARCHAR(255))
+BEGIN
+  DECLARE usr_id INT;
+  DECLARE usr_ip VARCHAR(15) DEFAULT NULL;
+  SELECT id INTO usr_id FROM users WHERE name=login LIMIT 1;
+  SELECT get_ip(usr_id) INTO usr_ip;
+  CALL set_auth(usr_ip, CONCAT('mod=radius;',properties));
+END$$
+DELIMITER ;
+</pre>
+</div>
+
+<div class="code"><div class="mark">команды mysql. Процедура разъединения</div>
+<pre>
+DROP PROCEDURE IF EXISTS `radstop`;
+DELIMITER $$
+CREATE PROCEDURE `radstop`(IN login VARCHAR(64))
+BEGIN
+  DECLARE usr_id INT;
+  SELECT id INTO usr_id FROM users WHERE name=login LIMIT 1;
+  DELETE FROM auth_now WHERE ip = get_ip(usr_id) LIMIT 1;
+END$$
+DELIMITER ;
+</pre>
+</div>
+
+<br>
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+ee /usr/local/etc/raddb/sql.conf
+</pre>
+</div>
+
+<p>удаляем все запросы (фактически все начиная с authorize_check_query и
+до <em>}</em>) и вместо них вписываем:</p>
+
+<div class="code">
+<pre>
+ authorize_check_query = "call radcheck('%{SQL-User-Name}')"
+ authorize_reply_query = "call radreply('%{SQL-User-Name}')"
+ postauth_query = "call radupdate('%{SQL-User-Name}','%{Framed-IP-Address}',\
+        'user=%{Calling-Station-Id};nas=%{NAS-IP-Address}')"
+ accounting_update_query = "call radupdate('%{SQL-User-Name}','%{Framed-IP-Address}',\
+        'user=%{Calling-Station-Id};nas=%{NAS-IP-Address}')"
+</pre>
+</div>
+
+<p>Проверяем:</p>
+
+<div class="code"><div class="mark">команды bash</div>
+<pre>
+/usr/local/etc/rc.d/radiusd restart
+radtest login pass 127.0.0.1 0 hardpass5
+</pre>
+</div>
+
+<p>где login и test соответственно логин и пароль реально существующей клиентской записи в NoDeny.</p>
+
+<br>
+
+
+
+<h1>Настройка mpd5</h1>
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+cd /usr/ports/net/mpd5 && make install clean
+</pre>
+</div>
+
+
+<p>Будет выведена табличка с вопросом какие дополнительные модули установить. Они нам не понадобятся.</p>
+
+<p>Ведение логов</p>
+
+<div class="code"><div class="mark">команды bash</div>
+<pre>
+echo '!mpd' &gt;&gt; /etc/syslog.conf
+echo '*.* /var/log/mpd.log' &gt;&gt; /etc/syslog.conf
+touch /var/log/mpd.log
+killall -HUP syslogd
+</pre>
+</div>
+
+<p>Ротация логов</p>
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+echo '/var/log/mpd.log 600 5 100 * JC' &gt;&gt; /etc/newsyslog.conf
+</pre>
+</div>
+
+<div class="code"><div class="mark">описание параметров ротации</div>
+<pre>
+600	- права на файлы
+5	- количество файлов в ротации
+100	- ротация будет произведена при достижении лога 100 кб
+*	- ротация по времени отключена
+JC	- упаковка файлов утилитой bzip2
+</pre>
+</div>
+
+
+<br>
+Автозапуск
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+echo mpd_enable=\"YES\" &gt;&gt; /etc/rc.conf
+</pre>
+</div>
+
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+ee /usr/local/etc/mpd5/mpd.conf
+</pre>
+</div>
+
+<div class="code"><div class="mark">вставляем текст</div>
+<pre>
+startup:
+        set user admin deletempd
+        set console self 127.0.0.1 5005
+        set console open
+        set web self 0.0.0.0 5006
+        set web open
+
+default:
+        load pppoe_server
+
+pppoe_server:
+
+        create bundle template B
+        set ipcp ranges 1.1.1.1/32 127.0.0.2/32
+        set ipcp dns 10.1.1.1
+        set ccp yes mppc
+        set mppc yes e40
+        set mppc yes e56
+        set mppc yes e128
+        set mppc yes stateless
+        set ecp disable dese-bis dese-old
+
+        create link template common pppoe
+        set link enable multilink
+        set link action bundle B
+        set link disable chap pap eap
+        set link enable pap
+        load radius
+        set pppoe service "*"
+
+        create link template em1 common
+        set link max-children 1000
+        set pppoe iface em1
+        set link enable incoming
+radius:
+        set radius server localhost hardpass5 1812 1813
+        set radius retries 3
+        set radius timeout 3
+        set radius me 127.0.0.1
+        set auth acct-update 45
+        set auth enable radius-auth
+        set auth enable radius-acct
+        set radius enable message-authentic
+</pre>
+</div>
+
+<div class="code"><div class="mark">Комментарии к mpd.conf</div>
+
+<div class="code">
+Все строки, кроме комментариев и ссылок (строки которые заканчиваются на двоеточие),
+должны начинаться с отступа (пробела или табуляции).
+</div>
+
+<p><b>admin</b> и <b>hardpass6</b> - логин и пароль для доступа к управлению
+mpd5 через консоль или web-интерфейс (http://xx.xx.xx.xx:5006/). Не забудьте в
+фаерволе открыть tcp порт 5006.</p>
+
+<p><b>1.1.1.1</b> - один из ip вашего сервера. Этот ip будет использован
+в туннеле: ip сервера &lt;-&gt; клиентский ip. Автор обычно прописывает этот ip
+на локальной заглушке.</p>
+
+<p><b>10.1.1.1</b> - dns-сервер. Через пробел можно указать несколько.</p>
+
+<p><b>em1</b> - Интерфейс, на который будут приниматься pppoe соединения.</p>
+
+<p><b>acct-update 45</b> - период посылки accounting пакетов (используем для поддержания
+авторизаций) 45 секунд.</p>
+</div>
+
+<div class="code"><div class="mark">команды bash</div>
+<pre>
+chmod 600 /usr/local/etc/mpd5/mpd.conf
+/usr/local/etc/rc.d/mpd5 forcestart
+tail -f /var/log/mpd.log
+</pre>
+</div>
+
+
+</body>
+</html>

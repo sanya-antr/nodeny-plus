@@ -1,0 +1,12 @@
+{% one_line %}
+{% if pic %}
+<table class='msg_tbl'>
+ <tr>
+   <td class='h_center'><img src='{{pic}}'>{% if picmsg %}<p class='error'>{{ picmsg }}</p>{% endif %}</td>
+   <td><div{% if msg_class %} class='{{msg_class}}'{% endif %}>{{ msg }}</div></td>
+ </tr>
+</table>
+{% else %}
+<div class='{{msg_class}}'>{{ msg }}</div>
+{% endif %}
+{% one_line_end %}

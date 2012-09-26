@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<title>Nodeny для разработчиков</title>
+<meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+<link rel='stylesheet' href='../i/nody.css' type='text/css'>
+</head>
+<body>
+
+<div class='header'><a href='../index.html'><img src='../i/Logo.png'></a>для разработчиков</div>
+
+<p>Если NoDeny+ установлен в /usr/local/nodeny, то структура папок такова:</p>
+
+<table>
+<tr><td>/usr/local/nodeny/web       </td><td>скрипты web интерфейса</td></tr>
+<tr><td>/usr/local/nodeny/web/user  </td><td>скрипты web интерфейса клиентской статистики</td></tr>
+<tr><td>/usr/local/nodeny/web/tmpl  </td><td>html-шаблоны web-интерфейса</td></tr>
+<tr><td>/usr/local/nodeny/web/lang  </td><td>языковые файлы</td></tr>
+<tr><td>/usr/local/nodeny/services  </td><td>услуги</td></tr>
+<tr><td>/usr/local/nodeny/kernel    </td><td>модули ядра</td></tr>
+<tr><td>/usr/local/nodeny/nod       </td><td>дополнительные модули</td></tr>
+<tr><td>/usr/local/nodeny/cfg       </td><td>конфигурационные файлы</td></tr>
+<tr><td>/usr/local/nodeny/logs      </td><td>логи</td></tr>
+</table>
+
+<h1>Web-интерфейс</h1>
+
+<p>Скрипт <em>/usr/local/www/apache22/cgi-bin/stat.pl</em> загружает <a href='calls.pm.html'>calls.pm</a>,
+затем реестр плагинов <em>/usr/local/nodeny/cfg/web_plugins.list</em>. Если авторизован администратор -
+управление передается скрипту <em>start_admin.pl</em> (получает данные администратора и формирует
+шапку web-страницы), если клиент - <em>start_user.pl</em> (получает данные клиента). Если
+администратор запускает плагин клиентской статистики, то цепочка запуска такова:
+<em>stat.pl → start_admin.pl → start_user.pl.</em></p>
+
+<p>Согласно параметру <em>a</em> адресной строки, загружается необходимый плагин, которому и передается
+управление.</p>
+
+</body>
+</html>

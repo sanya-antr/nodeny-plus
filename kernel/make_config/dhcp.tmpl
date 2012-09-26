@@ -1,0 +1,28 @@
+allow unknown-clients;
+option domain-name-servers 1.1.1.1, 8.8.8.8;
+
+default-lease-time 28800;
+min-lease-time 10000;
+max-lease-time 128800;
+
+authoritative;
+
+ddns-update-style interim;
+
+log-facility local7;
+
+subnet 10.0.0.0 netmask 255.255.255.0 {
+    option subnet-mask 255.255.255.0;
+    option broadcast-address 10.0.0.255;
+
+    {% for user in users %}
+        {% for ip in user.ips %}
+        host {{user.name}} {
+            hardware ethernet {{ip.type}};
+            fixed-address {{ip.ipa}};
+        }
+        {% endfor %}
+    {% endfor %}
+}
+
+

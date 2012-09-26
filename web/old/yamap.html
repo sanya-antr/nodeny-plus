@@ -1,0 +1,179 @@
+<div id='YMap'></div>
+
+<script type='text/javascript'>
+
+var Map;
+
+var NoMap = {
+    balloon_text : "<div id='mballoon'>{{lang::msg_after_submit}}</div>",
+    users : {
+        {{users}}
+    },
+    u_groups : {
+        {{u_groups}}
+    },
+    places : {
+        {{places}}
+    },
+    marks : {},
+    collection : {},
+    places_collection : {},
+    umark_style : 'twirl#campingIcon',
+    pmark_style : 'twirl#anchorIcon'
+};
+
+NoMap.ajax = function(cmd, gps, mark_id)
+{
+    // var pos = Map.converter.coordinatesToClientPixels(gps);
+    // console.log(pos.x + ':' +pos.y)
+    $.ajax({
+        dataType: 'json',
+        url     : '{{ses::script_url}}',
+        data    : {
+            a       : cmd,
+            mark_id : mark_id,
+            gps     : gps.toString(),
+        },
+        success : nody.ajax_response
+    });
+}
+
+NoMap.update_ballon = function()
+{
+    Map.balloon.autoPan();
+    nody.make_ajax();
+}
+
+NoMap.add_mark = function( type, id, mark_options )
+{
+    
+    var mark = new ymaps.Placemark(
+        [ mark_options.gpsY, mark_options.gpsX ],
+        { 
+            draggable: {{Marks_draggable}},
+            balloonContent: NoMap.balloon_text,
+        }
+    );
+
+    // u - маркер клиента, p - маркер места
+
+    var mark_id = type + id;
+    NoMap.marks[mark_id] = {};
+    NoMap.marks[mark_id].mark = mark;
+
+    if( type == 'u' )
+    {
+        for( var collection_id in NoMap.u_groups )
+        {
+            if( NoMap.u_groups[collection_id][id] || collection_id==0 )
+            {
+                NoMap.collection[collection_id].add(mark);
+            }
+        }
+    }
+     else
+    {
+        NoMap.places_collection.add( mark );
+    }
+
+    // Обработчик открытия балуна
+    mark.events.add('balloonopen', function()
+    {
+        //Map.balloon.open( mark.geometry.getCoordinates(), NoMap.balloon_text );
+        //Map.balloon.setData( 'gg' + NoMap.balloon_text );
+        NoMap.ajax('ajYamapBalloon', mark.geometry.getCoordinates(), mark_id);
+    });
+return;
+    // Обработчик старта перемещения маркера
+    YMaps.Events.observe(mark, mark.Events.DragStart, function()
+    {
+        NoMap.marks[mark_id].prevGps = mark.getGeoPoint().copy();
+    });
+
+    // Обработчик окончания перемещения маркера
+    YMaps.Events.observe(mark, mark.Events.DragEnd, function()
+    {
+        NoMap.ajax('ajYamapMove', mark.getGeoPoint(), mark_id);
+        mark.setCoordPoint(NoMap.marks[mark_id].prevGps);
+    });
+}
+
+ymaps.ready(function()
+{
+    $(window).resize( function()
+    {
+        var w = $(window).width() - 300;
+        var h = $(window).height() - $('#YMap').offset().top - 20;
+        $('#YMap').css({
+            width : Math.max(w,300),
+            height: Math.max(h,200)
+        });
+    });
+    $(window).resize();
+
+    Map = new ymaps.Map('YMap',
+        {
+            // Центр карты
+            center: [{{mapCenterY}}, {{mapCenterX}}],
+            // Коэффициент масштабирования
+            zoom: 17,
+            behaviors: ['default', 'scrollZoom']
+        }
+    );
+    
+    // Стандартный тулбар с кнопками "Навигация", "Выделение" и "Линейка"
+    Map.controls.add('mapTools')
+    // Масштабный отрезок
+    //.add('scaleLine')
+    // Кнопки изменения масштаба 
+    .add('zoomControl')
+    // Список типов карты
+    .add('typeSelector');
+
+    // Создание коллекций маркеров
+    NoMap.u_groups[0] = {};
+    for( var collection_id in NoMap.u_groups )
+    {
+        NoMap.collection[collection_id] = new ymaps.GeoObjectCollection({}, { preset: NoMap.umark_style });
+    }
+
+    // Создание маркера для каждого юзера
+    for( var id in NoMap.users )
+    {
+        NoMap.add_mark( 'u', id, NoMap.users[id] );
+    }
+
+    NoMap.places_collection = new ymaps.GeoObjectCollection({}, { preset: NoMap.pmark_style });
+    // Создание маркера каждого места
+    for( var id in NoMap.places )
+    {
+        NoMap.add_mark( 'p', id, NoMap.places[id] );
+    }
+    Map.geoObjects.add( NoMap.places_collection );
+
+    // Клик по кнопке показа группы маркеров
+    $('.mark_col_show').click( function()
+    {
+        var link = $(this);
+        var cur_collection_id = link.attr('rel');
+        var is_active = link.hasClass('active');
+
+        $('.mark_col_show').removeClass('active');
+
+        for( var collection_id in NoMap.collection )
+        {
+            if( cur_collection_id == collection_id && !is_active )
+            {
+                link.addClass('active');
+                Map.geoObjects.add( NoMap.collection[collection_id] );
+            }
+             else
+            {
+                Map.geoObjects.remove( NoMap.collection[collection_id] );
+            }
+        }
+
+        return false;
+    });
+});
+</script>

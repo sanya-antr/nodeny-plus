@@ -1,0 +1,88 @@
+<table id='adm_top'>
+<tr>
+    <td style='width:1%' rowspan='2'>
+        <a href='?a=users'><img src='{{cfg::img_url}}/{{pic}}' class='adm_avatar'></a>
+        <div id='adm_debug'></div>
+    </td>
+    <td id='adm_top_title_line'>
+        <div id='adm_top_title'>NoDeny. {{title}}</div>
+        <div id='adm_top_ed'>{{urls_ed}}</div>
+        <div style='clear:both'></div>
+    </td>
+</tr><tr>
+    <td id='adm_top_info_line'>
+        <div id='adm_top_urls'>
+            <span id='adm_top_search'>
+                    <select size="1" name="m_uname">
+                    <option value="0">начинается с</option>
+                    <option value="1">имеет фрагмент</option>
+                    <option value="2">=</option>
+                    <option value="4">&gt;</option>
+                    <option value="5">&lt;</option>
+                </select><input
+                    type='text'>
+            </span>
+            <a href='?a=main'>{{login_chain}}</a>
+            <a href='?a=users'>Клиенты</a>
+            <a href='?a=pay_log'>Платежи</a>
+            <a href='?a=traf_log'>Статистика</a>
+            <a href='?a=logout'>Выход</a>
+            {{urls}}
+        </div>
+        <div id='adm_top_center'>{{top_center}}</div>
+        <div id='add_top_info'>{{add_info}}</div>
+        <div style='clear:both'></div>
+        {% if made_msg %}<div class='adm_top_made_msg {{made_msg_class}}'>{{made_msg}}</div>{% endif %}
+    </td>
+</tr>
+</table>
+<div class='adm_top_line'></div>
+
+<script type='text/javascript'>
+var top_search_str = '';
+var top_search_mode = 0;
+var top_search_lock = 0;
+setInterval( function()
+ {
+    if( top_search_str == '' ) return;
+    if( top_search_lock )
+    {
+        top_search_lock++;
+        if( top_search_lock < 10 ) return;
+    }
+    top_search_lock = 1;
+    nody.ajax({ a: 'users', global: top_search_str, mode: top_search_mode });
+    top_search_str = '';
+ }, 100);
+
+var select_mode = $('#adm_top_search select');
+$('#adm_top_search input')
+    .keyup( function(event){
+        var input = $(this);
+        // F1
+        if( event.keyCode == 112 )
+        {
+            nody.click_pos = { x: input.offset().left, y: input.offset().top };
+            nody.ajax({ a: 'ajSearchMenu' });
+            return;
+        }
+        // F2
+        if( event.keyCode == 113 )
+        {
+            nody.ajax({ a: 'ajSearchTr', str: input.val() });
+            return;
+        }
+        if( event.keyCode == 40 )
+        {
+            var nextVal = $('#adm_top_search select option:selected').next('option').val();
+            select_mode.val(nextVal);
+        }
+        top_search_str = $(this).val();
+        top_search_mode = select_mode.val();
+    })
+    .bind('contextmenu', function(event){
+        nody.click_pos = { x: event.pageX, y: event.pageY };
+        nody.ajax({ a: 'ajSearchMenu' });
+        event.preventDefault();
+    });
+</script>

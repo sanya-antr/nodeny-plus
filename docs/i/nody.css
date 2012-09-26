@@ -1,0 +1,108 @@
+body {
+	font-family: Verdana, Tahoma, Arial, sans-serif;
+	font-size: 10pt;
+	color: #000000;
+	margin: 0 auto;
+	padding: 8pt 0 300pt 0;
+	background-color: #eeeeee;
+	text-align: justify;
+	max-width: 1024px;
+	padding: 7pt;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table thead td {
+	color: #ffffff;
+	background-color: #607080;
+}
+
+table td {
+	border: 1px solid #607080;
+	background-color: #ffffff;
+	padding: 2pt;
+}
+
+a img {
+	border: none;
+}
+
+h1 {
+	font-size: 12pt;
+	font-style: normal;
+	color: #000000;
+	padding-top: 25pt;
+	padding-bottom: 8pt;
+}
+
+.big 	{font-size:14pt}
+.cntr	{text-align:center}
+.lft	{text-align:left}
+.rght	{text-align:right}
+
+p  {
+	margin-top: 6pt;
+	margin-bottom: 10pt;
+}
+.coment {
+	color:#000000;
+	border:1px solid #000000;
+	padding:4px;
+	margin-left:35px;
+	margin-right:35px;
+	margin-top:8px;
+	margin-bottom:8px;
+	text-align:justify;
+}
+.mess {
+	color: #000000;
+	background-color: #ffffff;
+	border: 1px solid #B58E4A;
+	border-radius: 5pt;
+	padding: 10pt;
+	margin: 20px 15px 10px 15px;
+}
+.code {
+	color: #465584;
+	background-color: #ffffff;
+	border: 1px solid #B58E4A;
+	border-radius: 5pt;
+	line-height:120%;
+	padding: 8pt;
+	margin: 22pt 0pt;
+}
+.mark {
+	display: inline-block;
+	position: relative;
+	top: -13pt;
+	color: #705030;
+	background-color: #f0f0f0;
+	border: 1px solid #B58E4A;
+	border-radius: 5pt;
+	padding: 5pt 10pt;
+
+}
+
+.header  img {
+	margin: 10px 15px 20px 15px;
+	vertical-align: middle;
+}
+.header {
+    color: #2677ca;
+	font-size: 13pt;
+	padding-left: 4pt;
+}
+
+em {
+	color: #405060;
+	display: inline-block;
+	padding: 2px;
+	font-style: normal;
+}
+
+li {
+	margin-top: 4pt;
+	margin-bottom: 4pt;
+}

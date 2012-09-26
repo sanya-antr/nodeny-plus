@@ -1,0 +1,92 @@
+# Реестр web-плагинов
+#
+# Для удаления плагина не удаляйте строку, а комментируйте
+#
+#    код    | для админа? | только | имя файла   | название плагина
+#           |  (1/0)      | ajax?  | (без .pl)   |
+
+ajModalClose    1           1       ajModalClose    Закрытие модального окна
+ajCardInfo      1           1       ajCardInfo      Информация по карточке пополнения счета
+ajSearchTr      1           1       ajSearchTr      Конвертация текста в top_block
+ajSearchMenu    1           1       ajSearchMenu    Меню поиска в top_block
+ajGraph         1           0       ajGraph         Графики
+ajGraphDel      1           1       ajGraphDel      Удаление графика
+ajUserInfo      1           0       ajUserInfo      Инфо клиента
+ajUserInfo2     1           1       ajUserInfo2     Инфо клиента
+ajYamap         1           1       ajYamap         Карта
+ajYamapMove     1           1       ajYamap         Перемещение точки
+ajYamapCreate   1           1       ajYamap         Создание точки
+ajYamapBalloon  1           1       ajYamapBalloon  Отображение данных клиента на карте
+ajPayCreate     1           1       ajPayCreate     Проведение платежей
+ajPayComment    1           1       ajPayComment    Установка комментария к платежу
+ajPayInfo       1           1       ajPayInfo       Информация по платежу
+ajUserMenu      1           0       ajUserMenu      Операции с записью клиента
+ajUserBalance   1           1       ajUserBalance   Баланс клиента
+ajUserIpList    1           1       ajUserIpList    Отображение всех ip клиента
+ajUserIpAdd     1           1       ajUserIpAdd     Добавление ip клиенту
+ajUserIpDel     1           1       ajUserIpDel     Удаление ip клиента
+ajUserIpInfo    1           1       ajUserIpInfo    Информация об ip
+ajUserSrvList   1           1       ajUserSrvList   Отображение услуг клиента
+ajUserSrvAdd    1           1       ajUserSrvAdd    Добавление услуги клиенту
+ajUserSrvDel    1           1       ajUserSrvDel    Удаление услуги клиента
+ajUserSrvInfo   1           1       ajUserSrvInfo   Информация об услуге клиента
+ajUserSrvRenew  1           1       ajUserSrvAdd    Управление автопродлением услуги
+ajUserSrvForm   1           1       ajUserSrvForm   Форма изменения данных услуги
+ajUserSrvChange 1           1       ajUserSrvChange Изменение данных услуги
+ajAdmTopSearch  1           1       ajAdmTopSearch  Глобальный поиск
+ajResolve       1           1       ajResolve       Резолв ip
+ajLiqBalances   1           1       ajLiqBalances   Балансы Liqpay мерчанта
+ajTurboSms      1           1       ajTurboSms      Отправка sms через TurboSms
+ajShowPass      1           1       ajShowPass      Отображение пароля клиента
+
+help            1           0       help            Помощь
+admin           1           0       admin           Администраторы
+auth_log        1           0       auth_log        Лог авторизаций
+cards           1           0       cards           Управление карточками оплаты
+check           1           0       check           Проверки
+graphs          1           0       graphs          Графики
+main            1           0       main            Операции
+mytune          1           0       mytune          Личные настройки
+operations      1           0       operations      Операции
+op              1           0       op              Настройки
+pays            1           0       pays            Проведение платежей
+pay_log         1           0       pay_log         История платежей
+payshow         1           0       payshow         Платежи, события
+report          1           0       report          Отчет
+traf            1           0       traf            Статистика трафика
+traf_log        1           0       traf_log        Лог трафика
+traf_info       1           0       traf_info       Инфо трафика
+tune            1           0       tune            Настройки
+user            1           0       user            Данные клиента
+user_del        1           0       user_del        Удаление учетной записи клиента
+user_new        1           0       user_new        Запрос на создание нового клиента
+user_new_now    1           0       user_new_now    Создание нового клиента
+user_save       1           0       user_save       Запись данных клиента
+user_dop        1           0       user_dop        Запись допданных клиента
+user_blank      1           0       user_blank      Бланк настроек клиента
+users           1           0       users           Список клиентов
+safe_ses        1           0       safe_ses        Безопасная сессия
+yamap           1           0       yamap           Карта
+TurboSms        1           0       TurboSms        Cостояние TurboSms
+test            1           0       test            test
+demo            1           0       demo            Тестовый модуль
+
+# Клиентские плагины
+
+[u:user]
+
+ajAcceptMsg     0           1       ajAcceptMsg     С сообщением администрации ознакомлен
+
+main            0           0       main            Главная
+req_info        0           0       request_info    Запрос контактной информации
+liqpay          0           0       liqpay          Пополнить счет (Liqpay)
+cards           0           0       cards           Пополнить счет
+auth_log        0           0       auth_log        Сеансы подключений
+messadm         0           0       messadm         Сообщения
+pays            0           0       pays            Платежи
+locals          0           0       locals          Локальные ресурсы
+srv_select      0           0       srv_select      Подключение услуги
+srv_add         0           0       srv_add         Подключение услуги
+liq_phone       0           0       liq_phone       Пополнить мобильник
+remitter        0           0       remitter        Поделиться балансом
+traf_graph      0           0       traf_graph      График трафика

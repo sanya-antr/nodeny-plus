@@ -1,0 +1,430 @@
+<!doctype html>
+<html>
+<head>
+<title>Nodeny. Установка</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel='stylesheet' href='i/nody.css' type='text/css'>
+</head>
+<body>
+
+<div class='header'><a href='index.html'><img src='i/Logo.png'></a>Установка NoDeny</div>
+
+<ul>
+<li><a href='work/freebsd.html'>Установка системы</a></li>
+<li><a href='#db'>Установка MySQL-сервера</a></li>
+<li><a href='#web'>Установка Web-сервера</a></li>
+<li><a href='#perl'>Установка perl-модулей</a></li>
+<li><a href='#upload'>Загрузка инсталляции NoDeny на сервер</a></li>
+<li><a href='#startweb'>Вход в Web-интерфейс NoDeny</a></li>
+<li><a href='#safe'>Настройка безопасности</a></li>
+<li><a href='#admtune'>Настройка через Web-интерфейс NoDeny</a></li>
+<li><a href='#kernel'>Установка ядра NoDeny</a></li>
+<li><a href='#agents'>Установка агентов авторизации и доступа</a></li>
+<li><a href='#collector'>Настройка учета трафика</a></li>
+<li><a href='#tunedb'>Тюнинг mysql</a></li>
+<li><a href='tarifs.html'>Тарификация</a></li>
+</ul>
+<br>
+
+<p>В качестве операционной системы возьмем FreeBSD версии 8.x и установим, например,
+<a href='work/freebsd.html'>так<a>.</p>
+
+
+
+
+<h1><a name="db">Устанавливаем MySQL-сервер</a></h1>
+
+<div class='code'><div class='mark'>Команды bash</div><pre>
+cd /usr/ports/databases/mysql55-server/
+make install clean
+</div>
+
+<p>Создаем конфигурационный файл из шаблона. Спросим у mysqladmin где mysql будет искать конфиг:</p>
+
+<div class='code'><div class='mark'>Команды bash</div>
+<pre>mysqladmin</pre>
+</div>
+
+<div class='code'><div class='mark'>Видим на экране</div>
+<pre>
+Default options are read from the following files in the given order:
+/etc/my.cnf /etc/mysql/my.cnf /usr/local/etc/my.cnf /usr/local/etc/mysql/my.cnf ~/.my.cnf
+</pre>
+</div>
+
+<p>Поэтому:</p>
+
+<div class='code'><div class='mark'>Команда bash</div>
+<pre>
+cp /usr/local/share/mysql/my-huge.cnf /etc/my.cnf
+</pre>
+</div>
+
+<p>Редактируем конфиг:</p>
+
+<div class='code'><div class='mark'>Команда bash</div>
+<pre>
+ee /etc/my.cnf
+</pre>
+</div>
+
+<div class='code'><div class='mark'>Редактирование my.cnf. Секция [mysqld]</div>
+<pre>
+skip-character-set-client-handshake
+skip-name-resolve
+</pre>
+</div>
+
+<p>Стартуем mysql-сервер:</p>
+
+<div class='code'><div class='mark'>Команда bash</div>
+<pre>
+/usr/local/etc/rc.d/mysql-server forcestart
+</pre>
+</div>
+
+<p>Устанавливаем пароль учетной записи root в mysql (hardpass меняем на более сложный):</p>
+
+<div class='code'><div class='mark'>Команда bash</div>
+<pre>
+/usr/local/bin/mysqladmin -u root password 'hardpass'
+</pre>
+</div>
+
+<p>Автозапуск при старте системы:</p>
+
+<div class='code'><div class='mark'>Команда bash</div>
+<pre>
+echo mysql_enable=\"YES\" &gt;&gt; /etc/rc.conf
+</pre>
+</div>
+
+<h1><a name="web">Устанавливаем Web-сервер</a>, например,
+apache версии 2.2:</h1>
+
+<div class='code'><div class='mark'>Команды bash</div><pre>
+cd /usr/ports/www/apache22/
+make install clean
+</pre>
+</div>
+
+<p>Автозапуск:</p>
+
+<div class='code'><div class='mark'>Команды bash</div><pre>
+echo apache22_enable=\"YES\" &gt;&gt; /etc/rc.conf
+echo /sbin/kldload accf_http &gt;&gt; /etc/rc.local
+</pre>
+</div>
+
+<p>Стартуем без конфигурирования:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+apachectl start
+</pre>
+</div>
+
+<p>Открываем в браузере:</p>
+
+<div class='code'><div class='mark'>адресная строка в браузере</div><pre>
+http://10.0.0.1/
+</pre>
+</div>
+
+
+<p>Если не получаем приветствующего сообщения "It works!" - смотрим логи:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+tail /var/log/httpd-error.log
+</pre>
+</div>
+
+
+<h1><a name="perl">Устанавливаем модули perl</a>:</h1>
+
+
+<div class='code'><div class='mark'>Команды bash</div><pre>
+cd /usr/ports/databases/p5-DBI && make install clean
+cd /usr/ports/databases/p5-DBD-mysql && make install clean
+cd /usr/ports/security/p5-Crypt-Rijndael && make install clean
+cd /usr/ports/converters/p5-JSON && make install clean
+cd /usr/ports/converters/p5-JSON-XS && make install clean
+</pre>
+</div>
+
+
+<b><a name='upload'>Загружаем</a> на сервер архив с системой NoDeny</b>: <em>nodeny_XX.YY.tar.gz</em>. Хотим предостеречь вас
+от попытки разархивировать <em>nodeny_XX.YY.tar.gz</em> и после этого загрузить полученные файлы на сервер - некоторые
+программы могут отключить бинарный режим при передаче текстовых файлов, в результате чего содержимое файлов
+может быть искажено.<br>
+<br>
+
+Загружаем <em>nodeny_XX.YY.tar.gz</em> по ftp, предварительно запустив ftp-сервер:<br>
+<br>
+<div class='code'><div class='mark'>Команда bash</div><pre>
+ee /etc/inetd.conf
+</pre>
+</div>
+
+Раскоментируем строку, начинающуюся с &#171;#ftp&#187;. Сохраняем изменения.<br>
+<br>
+<div class='code'><div class='mark'>Команда bash</div><pre>
+inetd
+</pre>
+</div>
+<br>
+
+
+Теперь с компьютера, на который получили архив nodeny, запускаем ftp-клиент. Например, под Windows:<br>
+<br>
+<div class='code'><div class='mark'>Команда Windows</div><pre>
+C:\&gt; ftp 10.0.0.1
+</pre>
+</div>
+<br>
+Вводим логин и пароль.<br>
+
+<br>
+<div class='code'><div class='mark'>Команды ftp-программы</div><pre>
+binary
+put nodeny_XX.YY.tar.gz
+quit
+</pre>
+</div>
+<br>
+
+
+Разархивируем и запускаем на выполнения инсталляционный скрипт:<br>
+<br>
+<div class='code'><div class='mark'>Команды bash</div><pre>
+tar -xf nodeny_XX.YY.tar.gz  -C /root
+cd /root/nodeny
+perl install.pl
+</pre>
+</div>
+
+<br>
+Инсталляционный скрипт работает в режиме диалога: задает несколько вопросов, после чего
+проводит инсталляцию. Вопросы будут двух типов: yes/no, а также просьбы ввести какие-либо данные,
+например путь. Если ничего не ввести - это будет означать, что вы согласились с данными по
+умолчанию, например:<br>
+<br>
+[ND Installer] nodeny dir [/usr/local/nodeny]:<br>
+<br>
+Здесь скрипт спрашивает путь к папке, куда будет установлен NoDeny, при этом в квадратных
+скобках предлагает вариант по умолчанию, т.е. если ничего не вводить, а нажать enter,
+то будет принят вариант `/usr/local/nodeny`. Если данные будут некорректными, то скрипт
+может повторить вопрос.<br>
+<br>
+Итак, после запуска инсталляционного скрипта install.pl, получаем вопрос:<br>
+<br>
+<pre>
+[ND Installer] Select the action:
+          1) Install
+          2) Upgrade
+        any) Exit
+Your choice :
+</pre>
+
+Поскольку мы инсталлируем, а не обновляем систему - выбираем первый пункт.<br>
+<br>
+[ND Installer] nodeny dir [/usr/local/nodeny]:<br>
+<br>
+- нажимаем enter, т.е принимаем вариант по умолчанию. Если такая папка существует,
+что возможно, если вы ранее пытались установить систему, тогда скрипт выведет предупреждение:<br>
+<br>
+[ND Installer] /usr/local/nodeny exists. Probably You need to upgrade It. Are you sure NoDeny need to be installed? [y/n]:<br>
+<br>
+т.е. будет задан вопрос действительно ли мы инсталлируем NoDeny, а не пытаемся обновить предыдущую версию.
+Соглашаемся (`y`). Кстати, на всякий случай скрипт делает бекап этой папки.<br>
+<br>
+[ND Installer] www dir [/usr/local/www/apache22/data]:<br>
+<br>
+- здесь спрашивается расположение корневой папки Web-сервера. На данный момент для apache 2.2 путь
+`/usr/local/www/apache22/data`, т.е. нажимаем enter ничего не вводя. Если папка не будет найдена,
+например, если вы используете иной Web-сервер, тогда необходимо смотреть конфиг этого Web-сервера.<br>
+<br>
+[ND Installer] cgi-bin dir [/usr/local/www/apache22/cgi-bin]:<br>
+<br>
+- аналогичный вопрос, касающийся папки cgi-bin.<br>
+<br>
+[ND Installer] mysql server [localhost]:<br>
+[ND Installer] mysql root password [hardpass]:<br>
+[ND Installer] NoDeny database [bill]:<br>
+<br>
+- на все вопросы отвечаем нажатием на enter, т.е вводим данные по умолчанию.<br>
+<br>
+После этого скрипт создаст базу данных bill, если root-пароль для mysql был введен правильно.
+Затем, используя вызов утилиты mysql попытается воспроизвести структуру базы данных NoDeny,
+хранящуюся в файле bill.sql.<br>
+<br>
+Cообщение:<br>
+[ND Installer] Database `bill` exists. ALL DATA WILL BE LOST! Continue? [y/n]:<br>
+<br>
+говорит о том, что база данных bill существует и что при продолжении инсталляции все данные будут утеряны.
+Сообщение может возникнуть, если вы по каким-либо причинам запустили повторно инсталляцию, например,
+прервали ее предыдущее выполнение, когда БД уже была создана. Т.к. мы действительно
+инсталлируем NoDeny, а не обновляем его, смело продолжаем - жмем `y`.<br>
+<br>
+[ND Installer] nodeny www user in mysql (`no` - do not create) [bill_www]:<br>
+<br>
+Вопрос о имени mysql-юзера для административного интерфейса. Соглашайтесь с предложенным по умолчанию.<br>
+<br>
+[ND Installer] Password for nodeny www user in mysql [hardpass2]:<br>
+[ND Installer] Ip of nodeny www user in mysql [localhost]:<br>
+<br>
+Если такой юзер уже существует (повторный запуск инсталляции) - будет задан вопрос `продолжать y/n`?<br>
+<br>
+[ND Installer] User exists in mysql. Continue? [y/n]:<br>
+<br>
+Аналогичные 3 вопроса (логин, пароль, адрес) будут заданы и для `nodeny kernel user in mysql` - mysql-юзера
+для ядра NoDeny. Соглашаемся с предложениями по умолчанию.<br>
+<br>
+После этого скрипт создаст структуру папок, скопирует необходимые файлы на их места дислокации, выдаст
+соответствующие права и сообщит:<br>
+<br>
+NoDeny has been Installed. OK!<br>
+<br>
+Как видим, кроме клавиши `enter` никакие другие не были использованы.<br>
+<br>
+<br>
+
+
+
+
+
+<b><a name='startweb'>Тестовый вход в Web-интерфейс</a></b>, открываем в браузере:<br>
+<br>
+<em>http://10.0.0.2/cgi-bin/adm/adm.pl</em><br>
+<br>
+В результате получаем приглашение залогиниться в системе. Если ранее при создании логина bill_www
+установили пароль отличный от указанного в примере, то перед приглашением будет выведено сообщение
+о неудачной попытке соединиться с базой данных - это нормально.<br>
+<br>
+Поскольку в базу не внесено ни одной учетной записи администратора, необходимо залогиниться под
+системным логином. По умолчанию это логин: <em>admin</em>, а пароль к нему: <em>hardpass</em>.
+Если залогиниться не удается - читаем <a href='FAQ.html#noauth'>здесь</a> и <a href='work.html#eraccess'>здесь</a>.<br>
+<br>
+После процедуры логина попадаем либо на титульную страницу либо, если при создании логина bill_www указали иной пароль,
+на страницу изменения настроек системы NoDeny. Во втором случае в окне настроек слева в меню выбираем раздел
+&#171;Базы Данных&#187;, после чего в поле для пароля БД вводим пароль, который указали для юзера bill_www.
+Заодно устанавливаем &#171;ключ для кодирования паролей в базе данных&#187; на этой же странице.
+Ставим галочку над кнопкой &#171;сохранить&#187; и нажимаем эту кнопку. Ниже сообщения об успешности записи
+конфига выводится ссылка &#171;Создать учетную запись администратора&#187;, нажимаем ее, сейчас необходимо создать учетную запись
+суперадминистратора, после чего вернуться к редактированию конфига. Перед созданием читаем о
+<a href="priv.html">привилегиях администраторов</a>.<br>
+<br>
+
+Попасть в меню привилегий администраторов также можно через &#171;Операции&#187; &rarr; &#171;Привилегии администраторов&#187;.
+Выбираем &#171;Добавить нового&#187;, заполняем поля &#171;логин&#187;, &#171;пароль&#187; и &#171;имя&#187;, выбираем &#171;создать&#187;.
+В меню выбираем &#171;список администраторов&#187; и видим в списке запись единственного администратора,
+причем в заблокированном состоянии. Выбираем ссылку &#171;привилегии&#187;. В появившемся окне нажимаем на ссылку
+&#171;Отметить все&#187; либо ставим галочки напротив каждой привилегии, попутно читая описание к ней.
+Напротив &#171;Запрет на изменение личных настроек&#187; галочку не ставим.
+Запись считается суперадминистративной если стоят галочки напротив &#171;Редактирование настроек NoDeny&#187; и
+&#171;Редактирование учетных записей администраторов&#187;. Тем не менее, все остальные
+привилегии имеют силу. Признак &#171;суперадминистратор&#187; дает возможность разрулить критические ситуации в биллинге.<br>
+<br>
+Пора прощаться с системным логином - выбираем в верхнем меню &#171;Авторизация&#187; и логинимся под только что созданной записью
+суперадминистратора.<br>
+<br>
+<br>
+<br>
+
+
+
+
+<b><a name='safe'>Безопасность.</a></b><br>
+<br>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+ee /usr/local/etc/apache22/httpd.conf
+</pre>
+</div><br>
+<br>
+
+<p>Для включения HTTPS, перемещаем курсор в конец конфига и раскомментируем строку:</p>
+
+<div class='code'><div class='mark'>строка файла httpd.conf</div><pre>
+Include etc/apache22/extra/httpd-ssl.conf
+</pre>
+</div>
+<br>
+
+<p>Для работы по протоколу https необходим сертификат, который можно сгенерировать самому:</p>
+
+<div class='code'><div class='mark'>Команды bash</div><pre>
+mkdir /usr/local/etc/apache22/ssl
+chmod 700 /usr/local/etc/apache22/ssl
+cd /usr/local/etc/apache22/ssl
+openssl genrsa -out server.key -rand randfile -des3 2048
+</pre>
+</div>
+
+
+<p>будет запрошен пароль для сертификата, вводим `1111`, учитывая,
+что через несколько шагов от него избавимся.</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+openssl req -new -x509 -key server.key -out server.crt -days 800
+</pre>
+</div>
+
+<p>здесь 800 - количество дней работы сертификата.</p>
+
+<p>Избавимся от пароля в сертификате:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+openssl rsa -in server.key -out server.key
+</pre>
+</div> 
+
+<p>вводим `1111`.</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+chmod 400 server.key
+</pre>
+</div>
+
+<p>Настройка ssl-конфига:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+ee /usr/local/etc/apache22/extra/httpd-ssl.conf
+</pre>
+</div>
+
+<p>Исправляем пути к сертификатам:</p>
+
+<div class='code'><div class='mark'>Редактируем файл httpd-ssl.conf</div><pre>
+SSLCertificateFile "/usr/local/etc/apache22/ssl/server.crt"
+SSLCertificateKeyFile "/usr/local/etc/apache22/ssl/server.key"
+</pre>
+</div>
+
+<p>Перезапускаем apache:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+apachectl restart
+</pre>
+</div>
+
+<p>и открываем в браузере: https://10.0.0.2/</p>
+
+<p>Если не получаем приветствующего сообщения &#171;It works!&#187; - смотрим логи:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+tail /var/log/httpd-error.log
+</pre>
+</div>
+
+<p>
+...
+...
+...
+...
+...
+...
+</p>
+
+
+</body>
+</html>

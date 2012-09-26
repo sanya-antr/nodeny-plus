@@ -1,0 +1,202 @@
+<!doctype html>
+<html>
+<head>
+<title>Nodeny. Настройка Radius</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel='stylesheet' href='../i/nody.css' type='text/css'>
+</head>
+<body>
+
+<div class='header'><a href="../index.html"><img src="../i/Logo.png"></a>
+ Биллинговая система NoDeny. Настройка Radius</div>
+
+<p>В данном разделе описывается первоначальная настройка radius без привязки к NoDeny.
+Предназначена для того, чтобы вы установили и проверили работоспособность этого пакета,
+после чего настроили в связке с <a href='mikrotik_radius.html'>mikrotik</a> или
+<a href='mpd5.html'>mpd</a>.</p>
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+cd /usr/ports/net/freeradius && make install clean
+</pre>
+</div>
+
+<p>Ставим галку напротив MYSQL</p>
+
+
+<div class="code"><div class="mark">команды bash</div>
+<pre>
+echo radiusd_enable=\"YES\" &gt;&gt; /etc/rc.conf
+cd /usr/local/etc/raddb/
+ee radiusd.conf
+</pre>
+</div>
+
+<p>Файл radiusd.conf состоит из нескольких секций:</p>
+
+<div class="mess">
+<pre>
+название секции {
+   данные
+}</pre>
+</div>
+
+
+<p>Вы должны последовательно в секциях:</p>
+
+<ul>
+<li>authorize</li>
+<li>accounting</li>
+<li>session</li>
+<li>post-auth</li>
+</ul>
+<p>раскомментировать строку: sql</p>
+
+<p>В секции accounting закомментрировать строки:</p>
+<ul>
+<li>detail</li>
+<li>unix</li>
+<li>radutmp</li>
+</ul>
+
+
+
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+ee clients.conf
+</pre>
+</div>
+
+<div class="mess">
+<pre>
+client 127.0.0.1 {
+  ...
+  ...
+}</pre>
+</div>
+
+<p>меняем на:</p>
+
+<div class="mess">
+<pre>
+client 127.0.0.1 {
+        secret      = hardpass5
+        shortname   = NoDenyDB
+        nastype     = cisco
+}</pre>
+</div>
+
+<p>этим создали radius-клиента, который будет
+иметь доступ к radius-у по паролю hardpass5.</p>
+
+
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+ee sql.conf
+</pre>
+</div>
+
+
+<p>В cекции sql смотрим чтоб присутствовала строка:</p>
+
+<div class="mess">driver = "rlm_sql_mysql"</div>
+
+<p>Меняем параметры</p>
+
+<div class="mess">
+<pre>
+ server = "localhost"
+ login = "nodeny"
+ password = "hardpass"
+ radius_db = "nodeny"
+</pre>
+</div>
+
+<p>Далее находим</p>
+
+<div class="mess"><pre>
+ authorize_check_query = ".....
+     ....."
+</pre>
+</div>
+
+<p>и меняем на</p>
+
+<div class="mess">authorize_check_query = "SELECT NULL, 'test', 'Password', '123456', '=='"</div>
+
+<p>Удаляем</p>
+
+<div class="mess"><pre>
+ authorize_reply_query = ".....
+     ....."
+ и
+ postauth_query = "...."
+</pre>
+</div>
+
+
+<div class="code"><div class="mark">команда bash</div>
+<pre>
+ee users
+<pre>
+</div>
+
+<div class="code"><div class="mark">редактирование файла users</div>
+Комментируем строки:
+
+<div class="mess">DEFAULT Auth-Type = System</div>
+<div class="mess">Framed-IP-Address = 255.255.255.254,</div>
+<div class="mess">Framed-MTU = 576,</div>
+<div class="mess">Framed-Compression = Van-Jacobson-TCP-IP</div>
+
+</div>
+
+
+<div class="code"><div class="mark">команды bash</div>
+<pre>
+/usr/local/etc/rc.d/radiusd forcestart
+sockstat | grep radius
+</pre>
+</div>
+
+<div class="code"><div class="mark">видим на экране</div>
+<pre>
+root     radiusd    977   3  udp4   *:1812                *:*
+root     radiusd    977   4  udp4   *:1813                *:*
+</pre>
+</div>
+
+<p>Проверяем работоспособность radius:</p>
+
+<div class="code"><div class="mark">команда bash</div>
+radtest test 123456 127.0.0.1 0 hardpass5
+</div>
+
+<div class="code"><div class="mark">видим на экране</div>
+<pre>
+Sending Access-Request of id 216 to 10.0.0.1 port 1812
+        User-Name = "test"
+        User-Password = "123457"
+        NAS-IP-Address = 255.255.255.255
+        NAS-Port = 0
+rad_recv: Access-Accept packet from host 127.0.0.1:1812, id=83, length=20
+</pre>
+</div>
+
+<p>Ответ radius содержится в строке `rad_recv:`. Если ответ принят, а также в нем
+присутствует `Access-Accept` - все впорядке, тестирование заканчиваем. В противном случае
+запускаем radius в debug-режиме:</p>
+
+<div class="code"><div class="mark">команды bash</div>
+<pre>
+/usr/local/etc/rc.d/radiusd forcestop
+/usr/local/sbin/radiusd -X
+</pre>
+</div>
+
+<p>При этом весь процесс авторизации будет выводиться на экран.</p>
+
+</body>
+</html>

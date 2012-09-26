@@ -1,0 +1,199 @@
+<!doctype html>
+<html>
+<head>
+<title>Nodeny. Установка FreeBSD</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel='stylesheet' href='../i/nody.css' type='text/css'>
+</head>
+<body>
+
+<div class='header'><a href='index.html'><img src='../i/Logo.png'></a>Установка FreeBSD</div>
+
+
+<p>При разметке диска, установщик выделяет бОльшую часть разделу /usr, в нашем случае необходимо
+бОльшую часть отдать раздеру /var, поскольку там будет хранится база данных. Например:</p>
+
+<pre>
+1G    /
+1G    swap
+1G    /tmp
+10G   /usr
+xxxG  /var
+</pre>
+
+
+<p>После первой перезагрузки залогиньтесь под root-ом и настройте rc.conf:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+ee /etc/rc.conf
+</pre>
+</div>
+
+<div class='code'><div class='mark'>Редактирование rc.conf</div><pre>
+hostname="nodeny.com.ua"
+defaultrouter="10.0.0.2"
+ifconfig_fxp0="inet 10.0.0.1 netmask 255.255.225.0"
+ifconfig_lo0_alias0="inet 1.1.1.1 netmask 255.255.255.255"
+fsck_y_enable="YES"
+background_fsck="NO"
+sshd_enable="YES"
+firewall_enable="YES"
+gateway_enable="YES"
+named_enable="YES"
+</pre></div>
+
+<p>background_fsck="NO" отключает проверку дисков в бекграунде, для серверов лучше это сделать при старте,
+fsck_y_enable="YES" говорит "yes" на все вопросы при проверке.</p>
+
+<p>1.1.1.1 - это виртуальный ip, который автор настраивает на всех своих серверах на интерфейсе lo0. Этот
+ip клиенты указывают в своих настройках в качестве dns сервера, сервера авторизации и т.д.</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+ee /etc/rc.firewall
+</pre>
+</div>
+
+<div class='code'><div class='mark'>Редактирование rc.firewall</div><pre>
+#!/bin/sh -
+f='/sbin/ipfw'
+${f} add 100 allow ip from any to any
+</pre></div>
+
+<p>DNS-сервер:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+ee /etc/resolv.conf
+</pre>
+</div>
+
+<div class='code'><div class='mark'>Редактирование resolv.conf</div><pre>
+nameserver 8.8.8.8
+</pre></div>
+
+<p>Делаем reboot либо применяем сетевые параметры без перезагрузки: <em>/etc/netstart</em>.
+Пока будущий сервер загружается, переключаем монитор на рядом стоящий компьютер с настроенной
+графической оболочкой и ssh клиентом. Заходим по ssh на настраиваемый сервер.</p>
+
+<br>
+
+<p><b>Обновляем систему:</b></p>
+
+<div class='code'><div class='mark'>Команды bash</div>
+<pre>
+freebsd-update fetch
+freebsd-update install
+</pre>
+</div>
+
+<p><b>Обновляем дерево портов:</b></p>
+
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+portsnap fetch
+</pre>
+</div>
+
+<p><b>Компилируем ядро</b> пока загружается дерево портов, запускаем еще один ssh и:</p>
+
+<div class='code'><div class='mark'>Команды bash</div><pre>
+cd /usr/src/sys/i386/conf/
+cp GENERIC NODENY
+ee NODENY
+</pre>
+</div>
+
+<div class='code'><div class='mark'>Редактирование файла NODENY. В конце дописываем</div><pre>
+options         IPFIREWALL
+options         IPDIVERT
+options         IPFIREWALL_FORWARD
+options         DUMMYNET
+</pre></div>
+<br>
+
+
+<p>Если есть желание облегчить ядро - убираем все упоминания о SCSI, IPV6, принтере, SLIP и т.д.
+Не перестарайтесь - в будущем это оборудование у вас может появится, в частности не комментируйте
+дорогие сетевые карты, возможно в скором времени они у вас появятся. Рекомендуем отключить все
+ISA-сетевые, их век безвозвратно ушел.</p>
+
+<p>Трудно представить, что для биллинга у вас будут устаревшие типы процессоров, поэтому комментируем:</p>
+
+<div class='code'><div class='mark'>Редактирование файла NODENY</div><pre>
+#cpu            I486_CPU
+#cpu            I586_CPU
+</pre></div>
+<br>
+<br>
+
+<div class='code'><div class='mark'>Команды bash</div>
+<pre>
+config NODENY
+cd ../compile/NODENY
+make depend
+make
+make install
+</pre>
+</div>
+
+<p>Пока компилируется ядро, возвращаемся к первому окну с ssh-сессией и смотрим закончилась ли загрузка
+дерева портов, как только она завершится:</p>
+
+
+<div class='code'><div class='mark'>Команда bash</div>
+<pre>
+portsnap extract
+</pre>
+</div>
+
+<p>Перезагружаемся с новым ядром. Коннектимся по ssh и ставим perl, обязательно выбирая опцию
+'THREADS - Build threaded perl':</p>
+
+<div class='code'><div class='mark'>Команды bash</div>
+<pre>
+cd /usr/ports/lang/perl5.14/
+make install clean
+</pre>
+</div>
+
+<div class='code'>
+<pre>
+cd /usr/ports/shells/bash && make install clean  
+cd /usr/ports/misc/mc-light && make install clean
+cd /usr/ports/ports-mgmt/portupgrade && make install clean
+cd /usr/ports/net/trafshow && make install clean
+cd /usr/ports/net/mtr && make -DWITHOUT_X11 install clean
+</pre>
+</div>
+
+<p>После установки bash, назначаем его дефолтным для своей учетной записи:</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+pw usermod efendy -s /usr/local/bin/bash
+</pre>
+</div>
+
+<p>Не ставьте пакеты параллельно т.к. у них могут быть общие зависимости. Для экономии
+времени загрузки с интернета вы можете во время компиляции пакета для других выполнить
+<em>make fetch</em> - только загрузка исходников. Еще большая экономия времени будет при
+установке скомпиленных паккаджей, но они есть не на все пакеты.</p>
+
+<div class='code'><div class='mark'>Команда bash</div><pre>
+ee /etc/make.conf
+</pre>
+</div>
+
+<div class='code'><div class='mark'>Редактирование make.conf</div><pre>
+WITHOUT_X11=yes
+WITHOUT_GUI=yes
+WITHOUT_IPV6=yes
+</pre>
+</div>
+
+<p>В будущем всегда следите за безопасностью вашего сервера: держите порты в актуальном состоянии
+(portsnap, portupgrade), закройте сервисы для доступа &#171;из мира&#187; (к примеру оставьте
+&#171;в мир&#187; только 22й порт), не устанавливайте шлюз и файловый/видео/samba архив сети
+(тем более хостинг) на одном компьютере - это неудобно и небезопасно. Регулярно просматривайте логи.</p>
+
+
+</body>
+</html>

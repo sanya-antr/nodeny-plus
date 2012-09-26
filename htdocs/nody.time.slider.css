@@ -1,0 +1,54 @@
+.nody-timeslider-container {
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+}
+.nody-timeslider-dashline {
+    border-bottom: 1px solid #c0d0e0;
+    font-size: 1%;
+    position: absolute;
+    left: 0;
+    top: 5px;
+    z-index: 10;
+}
+.nody-timeslider-dashline b{
+    width: 1px;
+    height: 5px;
+    background-color: #90a0b0;
+    display: inline-block;
+}
+.nody-timeslider-textline {
+    position: absolute;
+    left: 0;
+    top: 9px;
+    z-index: 20;
+}
+.nody-timeslider-textline b {
+    font-size: 9px;
+    color: #90a0b0;
+    display: inline-block;
+}
+.nody-timeslider-sliderline {
+    font-size: 1%;
+    height: 26px;
+    position: relative;
+    left: 0;
+    z-index: 30;
+}
+.nody-timeslider-slider {
+    background-color: #ffffff;
+    border: 1px solid #90a0b0;
+    border-radius: 2px;
+    width: 3px;
+    height: 18px;
+    position: absolute;
+    left: 0;
+    top: 2px;
+    z-index: 40;
+}
+.nody-timeslider-slider-busy
+{
+    background-color: transparent;
+    border: 1px solid #a0c0d0;
+}
+

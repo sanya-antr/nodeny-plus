@@ -1,0 +1,43 @@
+ul {
+    margin-left: 10pt;
+}
+.nav_button_wrap {
+    display: inline;
+    vertical-align: top;
+}
+.nav_button  {
+    display: inline-block;
+    padding: 3px 10px;
+}
+
+.box-mini {
+
+}
+.box_tr, .box_tl, .box_t {
+    height: 17px;
+}
+.box_tr, .box_tl, .box_t, .box_r, .box_l, .box_br, .box_bl, .box_b {
+
+}
+
+#top_block {
+    vertical-align: top;
+}
+
+.top_msg, .adm_top_line {
+    border-color: #ffffff #ededed #d0d5dd #ededed;
+}
+
+.adm_top_line {
+    font-size: 1px;
+}
+
+.navmenu a {
+    border: none;
+}
+
+a.nav, .nav a, a.nav2, .nav2 a, .nav_active, .nav_button, .nav_disabled  {
+    background-image: url(/i/nav2.gif);
+    background-position: -1px -1px;
+    border-color: #b0b5c0;
+}

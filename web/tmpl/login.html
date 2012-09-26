@@ -1,0 +1,38 @@
+<table class='login_box'>
+    <tr><td class='h_center'><img src='{{cfg::img_dir}}/first.gif' alt='NoDeny'></td><td>
+        <table class='login_tbl'>
+            <tr><td class='h_right'>{{ lang::mLogin_login }}:</td>
+                <td><input name='_uu' id='_uu' size='30' maxlength='32' value='' autocomplete='off' type='text'></td></tr>
+            <tr><td class='h_right'>{{ lang::mLogin_pass }}:</td>
+                <td><input name='_pp' id='_pp' size='30' type='password'></td></tr>
+        </table>
+    </td></tr>
+    <tr><td class='h_center big' colspan='2'>&nbsp;</td></tr>
+    <tr><td class='h_center'>{{ mLogin_title }}</td><td class='h_center'>{{ mLogin_button }}</td></tr>
+</table>
+
+<script type='text/javascript'>
+var login_start = function()
+{
+    $('#_uu').focus();
+    setTimeout(
+        function() {
+            $('.login_box').fadeOut( 6000, function()
+            { 
+                $('#main_block').html("<div id='window_reload_btn' onclick='window.location.reload(); return false'></div>");
+            });
+        },
+        120*1000
+    );
+}
+
+var login_submit = function()
+{
+    $('input[name="_hash"]').val(
+        hex_md5( $('input[name="_salt"]').val() + ' ' + $('#_pp').val() )
+    );
+    $('#_pp').remove();
+    $('input[name="_salt"]').remove();
+    return true;
+}
+</script>

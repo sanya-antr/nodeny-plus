@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+<head>
+<title>Nodeny. Debug.pm</title>
+<meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+<link rel='stylesheet' href='../i/nody.css' type='text/css'>
+</head>
+<body>
+
+<div class='header'><a href='../index.html'><img src='../i/Logo.png'></a>
+Debug.pm</div>
+
+<p>Используется практически всеми скриптами NoDeny и предназначен для ведения логов и вывода отладочных сообщений.
+Загружается самым первым, чтобы в случае критической ошибки, вывести ее в удобном и понятном виде.</p>
+
+<div class='code'><div class='mark'>Примеры</div>
+<pre>
+    debug('Запускаем проверку балансов');
+    debug('error', 'Ошибка!');
+    debug('warn', "Предупреждение. У клиента uid = $uid отрицательный баланс");
+    debug('Dump переменной $obj: ', $obj, ' - вот так!');
+    debug(\%hash);
+</pre>
+</div>
+
+<p>В примерах мы посылаем сообщения в основной Debug. Если необходимо вести несколько debug-ов/логов -
+необходимо создать отдельный debug-объект:</p>
+
+<div class='code'><div class='mark'>perl код</div>
+<pre>
+    my $debug1 = Debug-&gt;new;
+    my $debug2 = Debug-&gt;new;
+
+    $debug1-&gt;add('start');
+    $debug2-&gt;add('creating connection');
+    $debug2-&gt;add('connection object info:', $connection);
+</pre>
+</div>
+
+<p>Debug может работать в 3 режимах: web, консоль и файл. По умолчанию включен web-режим. В этом режиме данные
+сохраняются внутри debug-объекта и никуда не выводятся. Вывод осуществляется по команде:</p>
+
+<div class='code'><div class='mark'>perl код</div>
+<pre>
+    my $html = Debug-&gt;show;
+</pre>
+</div>
+
+<p>Этим произойдет формирование html-фрагмента с текущим debug.</p>
+
+<p>В NoDeny web-интерфейсе debug включен всегда. По мере выполнения скриптов он заполняется данными.
+По завершению выполнения, debug либо уничтожается либо рендерится (Debug-&gt;show) и посылается суперадминистратору.
+Несмотря на то, что для не суперадминистратора debug уничтожается, он все равно ведется, чтобы в случае
+критической ошибки все события были записаны в файл для дальнейшего изучения суперадминистратором.
+В этом случае web-интерфейс поступает подобным образом:</p>
+
+<div class='code'><div class='mark'>perl код</div>
+<pre>
+    Debug-&gt;param( -type=&gt;'file', -file=&gt;$cfg::debug_log, -nochain=&gt;0 );
+    Debug-&gt;show; # весь накопленный debug выводим в файл
+</pre>
+</div>
+
+<p>Параметры Debug объекта, задаются методом param либо при создании объекта методом new:</p>
+
+<div class='code'>
+<pre>
+    -type       : тип debug (file/console/web)
+    -file       : имя файла для -type = file
+    -drop_chain : 1 - не выводить цепочку подпрограмм для каждого сообщения (только для -type = file/console )
+    -only_log   : 1 - заставит вести дебаг только при вызове подпрограммы tolog(), debug() будет игнорироваться
+</pre>
+</div>
+
+<p>Для демонстрации, создайте файл ping.pl, вставьте в него следующий код и запустите на выполнение:</p>
+
+<div class='code'><div class='mark'>perl код</div>
+<pre>
+    use Debug;
+    # установить в 0 если необходим детальный лог
+    my $mode = 0;
+    my $log = Debug-&gt;new(
+        -type       =&gt; 'file',
+        -file       =&gt; 'debug.txt',
+        -drop_chain =&gt; $mode,
+        -only_log   =&gt; $mode,
+    );
+    $log-&gt;tolog('ping start');
+    $log-&gt;debug("Результат выполнения ping:", `ping -c3  127.0.0.1`);
+    $log-&gt;tolog('ping end');
+</pre>
+</div>
+
+<p>Результат смотрите в файле debug.txt.</p>
+
+<p>С момента установки type = file/console, все последующие данные автоматически выводятся в файл/консоль,
+т.е. метод show вызывать не требуется.</p>
+
+<p>В методах debug/tolog/add/insert первым параметром может идти одно из зарезервированных слов:</p>
+
+<div class='code'>
+<pre>
+    error   : данное сообщение описывает ошибку
+    warn    : данное сообщение описывает предупреждение
+    pre     : сохранить форматирование
+    head    : сообщение является заголовком
+</pre>
+</div>
+
+<p>В случае 'error', debug-объект увеличивает свой внутренний счетчик ошибок:</p>
+
+<div class='code'><div class='mark'>perl код</div>
+<pre>
+    ....
+    $error_msg && debug('error', $error_msg);
+    ....
+    $error_msg && debug('error', $error_msg);
+    ....
+    if( Debug-&gt;errors &gt; 0)
+    {   # произошло Debug-&gt;errors ошибок
+        rollback;
+    }
+</pre>
+</div>
+
+<p>&nbsp;</p>
+
+<div class='coment'><div class='mark'>Замечания</div>
+<p>Html, полученный методом show, содержит css стили, а также уникальны идентификаторы DOM, т.е допускается
+вывод нескольких debug в один html.</p>
+
+<p>Дебаг в web-режиме обнулятся после накопления 1000 сообщений.</p>
+
+</div>
+
+
+<p>&nbsp;</p>
+<p>Модуль debug-а предоставляет некоторые полезные возможности, например, формирование дампа переменных/объектов:</p>
+
+<div class='code'><div class='mark'>perl код</div>
+<pre>
+    use Debug;
+    my $obj = { one =&gt;  1, two =&gt; 2 };
+    my $dump = Debug-&gt;dump( $obj );
+    print $dump."\n";
+</pre>
+</div>
+
+<p>Debug-&gt;dump использует Data::Dumper, т.е. вы можете не подгружать Data::Dumper явно через use, а использовать Debug.</p>
+
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+<title>{{ cfg::net_title }}</title>
+<meta http-equiv='Cache-Control' content='no-cache'>
+<meta http-equiv='Pragma' content='no-cache'>
+<meta http-equiv='Content-Type' content='text/html; charset=utf-8'>
+<link rel='stylesheet' href='{{cfg::img_dir}}/nody.css' type='text/css'>
+<!--[if lt IE 8]><link rel='stylesheet' href='{{cfg::img_dir}}/ie.css' type='text/css'><![endif]-->
+<script type='text/javascript' src='{{cfg::img_dir}}/js/jquery1.7.1.js'></script>
+<script type='text/javascript' src='{{cfg::img_dir}}/js/datepicker.js'></script>
+<script type='text/javascript' src='{{cfg::img_dir}}/js/nody.js'></script>
+{{head_tag}}
+<script type='text/javascript'>
+var nody;
+$(document).ready(function() {
+    nody = {
+            msg_after_submit : '{{lang::msg_after_submit}}',
+            img_after_submit : '{{cfg::img_dir}}/loading.gif',
+            script_url       : '{{ses::script_url}}',
+            document_ready   : nody_ready
+    };
+    nody.document_ready();
+    {{ document_ready }}
+})
+</script>
+</head>
+<body class='{{body_class}} resolution'>
+<div id='modal_window' style='display:none'></div><div id='modal_mask' style='display:none'></div>
+<div id='buffer' style='display:none'>{{buffer}}</div>
+<table id='main_table'>
+    <tr class='{{css_top_block}}'><td colspan='4' style='padding:0; height:1px'>
+      {% if debug %}
+        <a id='debug_href' class='debug_href' href='#'>Debug{% if debug_errors %} {{debug_errors}} errors{% endif %}</a>
+        <div id='debug' style='display:none'>{{ debug }}</div>
+      {% endif %}
+        <div id='top_block'>{{ top_block }}</div>
+        <div id='top_lines'>{{ top_lines }}</div>
+    </td></tr>
+    <tr>
+        <td id='left_block'  class='left_block {{css_left_block}}'>{{ left_block }}</td>
+        <td id='main_block'  style='vertical-align:{{main_v_align}}'>{{ main_block }}</td>
+        <td id='right_block' class='right_block {{css_right_block}}'>{{ right_block }}</td>
+        <td id='adjust_block'></td>
+    </tr>
+</table>
+</body>
+</html>
